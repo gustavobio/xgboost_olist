@@ -1,0 +1,739 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{lmodern}
+\usepackage{ifxetex,ifluatex}
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\hypersetup{
+  pdftitle={R Notebook},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+\urlstyle{same} % disable monospaced font for URLs
+\usepackage[margin=1in]{geometry}
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.77,0.63,0.00}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\ifluatex
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+
+\title{R Notebook}
+\author{}
+\date{\vspace{-2.5em}}
+
+\begin{document}
+\maketitle
+
+\begin{itemize}
+\tightlist
+\item
+  94\% das pessoas já desistiram de uma compra por causa de uma
+  avaliação ruim
+\item
+  Identificar que clientes provavelmente deixarão uma avaliação ruim
+  seria uma grande vantagem para o negócio:
+
+  \begin{itemize}
+  \tightlist
+  \item
+    Envio de mensagens personalizadas
+  \item
+    Resolução do problema antes que a resenha seja postada
+  \item
+    Mostra que se importa: muitos consumidores não deixam as resenhas
+    para outros consumidores, mas sim para que a empresa saiba da sua
+    instisfação
+  \end{itemize}
+\item
+  É possível identificar os clientes insatisfeitos?
+\item
+  Dados de 100k pedidos da Olist, um marketplace
+\item
+  Valores dos pedidos, preço, número de itens, identificador dos
+  protudos, data de compra, data prevista de entrega, data de entrega,
+  classificação, texto da avaliação, entre outros.
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+Para criar um modelo que preveja se um usuário tende a deixar uma
+avaliação positiva ou negativa, neste notebook eu:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Exploro os dados, identificando o formato das distribuições, presença
+  de outliers, correlações entre as variáveis
+\item
+  Crio novas variáveis (feature engineering) de acordo com o problema de
+  negócio, retiro as variáveis altamente correlacionadas à outras, e
+  aplico as transformações necessárias para cada modelo
+\item
+  Ajusto uma série de modelos de aprendizado de máquina, em que a
+  variável a ser prevista é o sentimento da avaliação (positivo ou
+  negativo)
+\item
+  Interpreto os resultados do ponto de visto do negócio
+\end{enumerate}
+
+Nesta análise eu uso o R, os pacotes dos grupos tidyverse e tidymodels,
+e os dados da Olist disponibilizados no Kaggle.
+
+\hypertarget{explorando-os-dados}{%
+\subsection{Explorando os dados}\label{explorando-os-dados}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{library}\NormalTok{(tidyverse)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## -- Attaching packages --------------------------------------- tidyverse 1.3.1 --
+\end{verbatim}
+
+\begin{verbatim}
+## v ggplot2 3.3.4     v purrr   0.3.4
+## v tibble  3.1.2     v dplyr   1.0.6
+## v tidyr   1.1.3     v stringr 1.4.0
+## v readr   1.4.0     v forcats 0.5.1
+\end{verbatim}
+
+\begin{verbatim}
+## -- Conflicts ------------------------------------------ tidyverse_conflicts() --
+## x dplyr::filter() masks stats::filter()
+## x dplyr::lag()    masks stats::lag()
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{library}\NormalTok{(tidymodels)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Registered S3 method overwritten by 'tune':
+##   method                   from   
+##   required_pkgs.model_spec parsnip
+\end{verbatim}
+
+\begin{verbatim}
+## -- Attaching packages -------------------------------------- tidymodels 0.1.3 --
+\end{verbatim}
+
+\begin{verbatim}
+## v broom        0.7.7      v rsample      0.1.0 
+## v dials        0.0.9      v tune         0.1.5 
+## v infer        0.5.4      v workflows    0.2.2 
+## v modeldata    0.1.0      v workflowsets 0.0.2 
+## v parsnip      0.1.6      v yardstick    0.0.8 
+## v recipes      0.1.16
+\end{verbatim}
+
+\begin{verbatim}
+## -- Conflicts ----------------------------------------- tidymodels_conflicts() --
+## x scales::discard() masks purrr::discard()
+## x dplyr::filter()   masks stats::filter()
+## x recipes::fixed()  masks stringr::fixed()
+## x dplyr::lag()      masks stats::lag()
+## x yardstick::spec() masks readr::spec()
+## x recipes::step()   masks stats::step()
+## * Use tidymodels_prefer() to resolve common conflicts.
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{library}\NormalTok{(lubridate)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## Attaching package: 'lubridate'
+\end{verbatim}
+
+\begin{verbatim}
+## The following objects are masked from 'package:base':
+## 
+##     date, intersect, setdiff, union
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{library}\NormalTok{(stacks)}
+\FunctionTok{library}\NormalTok{(bestNormalize)}
+\FunctionTok{library}\NormalTok{(patchwork)}
+\FunctionTok{library}\NormalTok{(GGally)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Registered S3 method overwritten by 'GGally':
+##   method from   
+##   +.gg   ggplot2
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{library}\NormalTok{(vip)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## Attaching package: 'vip'
+\end{verbatim}
+
+\begin{verbatim}
+## The following object is masked from 'package:utils':
+## 
+##     vi
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{theme\_set}\NormalTok{(}\FunctionTok{theme\_light}\NormalTok{())}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{importando-os-dados-disponibilizados-pela-olist.}{%
+\subsection{1. Importando os dados disponibilizados pela
+Olist.}\label{importando-os-dados-disponibilizados-pela-olist.}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{geolocations }\OtherTok{\textless{}{-}} \FunctionTok{read\_csv}\NormalTok{(}\StringTok{"data/olist/olist\_geolocation\_dataset.csv"}\NormalTok{)}
+\NormalTok{consumidores }\OtherTok{\textless{}{-}} \FunctionTok{read\_csv}\NormalTok{(}\StringTok{"data/olist/olist\_customers\_dataset.csv"}\NormalTok{)}
+\NormalTok{itens }\OtherTok{\textless{}{-}} \FunctionTok{read\_csv}\NormalTok{(}\StringTok{"data/olist/olist\_order\_items\_dataset.csv"}\NormalTok{)}
+\NormalTok{avaliacoes }\OtherTok{\textless{}{-}} \FunctionTok{read\_csv}\NormalTok{(}\StringTok{"data/olist/olist\_order\_reviews\_dataset.csv"}\NormalTok{)}
+\NormalTok{produtos }\OtherTok{\textless{}{-}} \FunctionTok{read\_csv}\NormalTok{(}\StringTok{"data/olist/olist\_products\_dataset.csv"}\NormalTok{)}
+\NormalTok{vendedores }\OtherTok{\textless{}{-}} \FunctionTok{read\_csv}\NormalTok{(}\StringTok{"data/olist/olist\_sellers\_dataset.csv"}\NormalTok{)}
+\NormalTok{pagamentos }\OtherTok{\textless{}{-}} \FunctionTok{read\_csv}\NormalTok{(}\StringTok{"data/olist/olist\_order\_payments\_dataset.csv"}\NormalTok{)}
+\NormalTok{pedidos }\OtherTok{\textless{}{-}} \FunctionTok{read\_csv}\NormalTok{(}\StringTok{"data/olist/olist\_orders\_dataset.csv"}\NormalTok{)}
+
+\NormalTok{produtos }\OtherTok{\textless{}{-}}\NormalTok{ produtos }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{rename}\NormalTok{(}\AttributeTok{product\_description\_length =}\NormalTok{ product\_description\_lenght,}
+         \AttributeTok{product\_name\_length =}\NormalTok{ product\_name\_lenght) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}\AttributeTok{product\_category\_name =} \FunctionTok{if\_else}\NormalTok{(}\FunctionTok{is.na}\NormalTok{(product\_category\_name), }\StringTok{"outras"}\NormalTok{, product\_category\_name))}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{criando-a-variuxe1vel-a-ser-prevista-review_sentiment}{%
+\subsection{2. Criando a variável a ser prevista:
+review\_sentiment}\label{criando-a-variuxe1vel-a-ser-prevista-review_sentiment}}
+
+Nos 100 mil pedidos, a classificação mais comum foi 5 estrelas (57\%),
+seguida de 4 estrelas (19\%) e 1 estrela (11\%). Para esta análise,
+considerei notas 4 e 5 como positivas, 1 e 2 como negativas e 3 como
+neutra.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{avaliacoes }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ review\_score)) }\SpecialCharTok{+}
+  \FunctionTok{geom\_bar}\NormalTok{() }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}
+    \AttributeTok{x =} \StringTok{"Classificação"}\NormalTok{,}
+    \AttributeTok{y =} \StringTok{"Número de avaliações"}\NormalTok{,}
+    \AttributeTok{title =} \StringTok{"Distribuição das notas"}\NormalTok{,}
+    \AttributeTok{subtitle =} \StringTok{"Em 100 mil pedidos da Olist"}
+\NormalTok{  )}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{olist_sentiment_files/figure-latex/unnamed-chunk-3-1.pdf}
+Criei a variável \texttt{review\_sentiment} usando as regras acima.
+\textbf{Essa é a variável que vamos prever}. O objetivo principal é
+identificar que pedidos tendem a gerar avaliações negativas.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{avaliacoes }\OtherTok{\textless{}{-}}\NormalTok{ avaliacoes }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}
+    \AttributeTok{review\_sentiment =} \FunctionTok{case\_when}\NormalTok{(}
+\NormalTok{      review\_score }\SpecialCharTok{\%in\%} \DecValTok{1}\SpecialCharTok{:}\DecValTok{2} \SpecialCharTok{\textasciitilde{}} \StringTok{"negative"}\NormalTok{,}
+\NormalTok{      review\_score }\SpecialCharTok{\%in\%} \DecValTok{4}\SpecialCharTok{:}\DecValTok{5} \SpecialCharTok{\textasciitilde{}} \StringTok{"positive"}\NormalTok{,}
+      \ConstantTok{TRUE} \SpecialCharTok{\textasciitilde{}} \StringTok{"neutral"}
+\NormalTok{    )}
+\NormalTok{  )}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{avaliacoes }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ review\_sentiment)) }\SpecialCharTok{+} 
+  \FunctionTok{geom\_bar}\NormalTok{() }\SpecialCharTok{+} 
+  \FunctionTok{labs}\NormalTok{(}
+    \AttributeTok{x =} \StringTok{"review\_sentiment"}\NormalTok{,}
+    \AttributeTok{y =} \StringTok{"Número de avaliações"}\NormalTok{,}
+    \AttributeTok{title =} \StringTok{"Distribuição dos sentimentos"}\NormalTok{,}
+    \AttributeTok{subtitle =} \StringTok{"Em 100 mil pedidos da Olist"}
+\NormalTok{  )}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{olist_sentiment_files/figure-latex/unnamed-chunk-5-1.pdf}
+As classes são desbalanceadas, então a amostragem para construção dos
+conjuntos de treino, validação e teste será estratificada.
+
+\hypertarget{variuxe1veis-preditoras-features}{%
+\subsection{3. Variáveis preditoras
+(features)}\label{variuxe1veis-preditoras-features}}
+
+\hypertarget{a.-classificauxe7uxe3o-muxe9dia-do-produto-mean_prod_score}{%
+\subsubsection{a. Classificação média do produto:
+mean\_prod\_score}\label{a.-classificauxe7uxe3o-muxe9dia-do-produto-mean_prod_score}}
+
+A nota média de cada produto nas avaliações. A ideia é que quanto menor
+a média, maior a tendência de que novas avaliações do mesmo produto
+tenham sentimento negativo, refletindo a qualidade do produto ou algum
+outro fator que cause insatisfação nos consumidores.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{mean\_prod\_rating }\OtherTok{\textless{}{-}}\NormalTok{ avaliacoes }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{left\_join}\NormalTok{(pedidos) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{left\_join}\NormalTok{(itens) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{left\_join}\NormalTok{(produtos) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{select}\NormalTok{(product\_id, review\_score) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{group\_by}\NormalTok{(product\_id) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{summarise}\NormalTok{(}\AttributeTok{mean\_prod\_score =} \FunctionTok{mean}\NormalTok{(review\_score, }\AttributeTok{na.rm =}\NormalTok{ T)) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{ungroup}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Joining, by = "order_id"
+## Joining, by = "order_id"
+\end{verbatim}
+
+\begin{verbatim}
+## Joining, by = "product_id"
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{produtos }\OtherTok{\textless{}{-}}\NormalTok{ produtos }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{left\_join}\NormalTok{(mean\_prod\_rating)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Joining, by = "product_id"
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{produtos }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ mean\_prod\_score)) }\SpecialCharTok{+}
+  \FunctionTok{geom\_histogram}\NormalTok{() }\SpecialCharTok{+} 
+  \FunctionTok{labs}\NormalTok{(}
+    \AttributeTok{x =} \StringTok{"mean\_prod\_score"}\NormalTok{,}
+    \AttributeTok{y =} \StringTok{"Número de produtos"}\NormalTok{,}
+    \AttributeTok{title =} \StringTok{"Distribuição dos sentimentos"}\NormalTok{,}
+    \AttributeTok{subtitle =} \StringTok{"Em 100 mil pedidos da Olist"}
+\NormalTok{  )}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+\end{verbatim}
+
+\includegraphics{olist_sentiment_files/figure-latex/unnamed-chunk-7-1.pdf}
+\#\#\# b. Tempo entre email solicitando e postagem da avaliação:
+survey\_hours\_after\_asking
+
+O tempo entre solicitação da avaliação pela Olist e postagem da
+avaliação pelo usuário pode refletir o sentimento.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{avaliacoes }\OtherTok{\textless{}{-}}\NormalTok{ avaliacoes }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{filter}\NormalTok{(}\SpecialCharTok{!}\FunctionTok{duplicated}\NormalTok{(order\_id)) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}\AttributeTok{survey\_hours\_after\_asking =} \FunctionTok{as.numeric}\NormalTok{(review\_answer\_timestamp }\SpecialCharTok{{-}}\NormalTok{ review\_creation\_date))}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{c.-valor-do-pagamento-muxe9todo-e-parcelas-payment_value-payment_type-e-payment_installments}{%
+\subsubsection{c.~Valor do pagamento, método e parcelas: payment\_value,
+payment\_type e
+payment\_installments}\label{c.-valor-do-pagamento-muxe9todo-e-parcelas-payment_value-payment_type-e-payment_installments}}
+
+Quanto maior o valor do produto + frente, mais sensível o cliente a
+desvios de qualidade e atrasos. A distribuição original de
+\texttt{payment\_value} é truncada, então transformei os dados com
+\texttt{log10()}.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{pagamentos }\OtherTok{\textless{}{-}}\NormalTok{ pagamentos }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{group\_by}\NormalTok{(order\_id) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{summarise}\NormalTok{(}\AttributeTok{payment\_value =} \FunctionTok{sum}\NormalTok{(payment\_value), }
+            \AttributeTok{payment\_type =} \FunctionTok{first}\NormalTok{(payment\_type),}
+            \AttributeTok{payment\_installments =} \FunctionTok{min}\NormalTok{(payment\_installments)) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{ungroup}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{pagamentos }\SpecialCharTok{\%\textgreater{}\%}
+  \CommentTok{\#mutate(payment\_value = predict(yeojohnson(payment\_value))) \%\textgreater{}\% }
+  \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ payment\_value)) }\SpecialCharTok{+}
+  \FunctionTok{geom\_histogram}\NormalTok{() }\SpecialCharTok{+} 
+  \FunctionTok{scale\_x\_log10}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning: Transformation introduced infinite values in continuous x-axis
+\end{verbatim}
+
+\begin{verbatim}
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+\end{verbatim}
+
+\begin{verbatim}
+## Warning: Removed 3 rows containing non-finite values (stat_bin).
+\end{verbatim}
+
+\includegraphics{olist_sentiment_files/figure-latex/unnamed-chunk-10-1.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{pedidos }\OtherTok{\textless{}{-}}\NormalTok{ pedidos }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}\AttributeTok{estimated\_delivery\_in\_days =} 
+           \FunctionTok{as.numeric}\NormalTok{(order\_estimated\_delivery\_date }\SpecialCharTok{{-}}\NormalTok{ order\_purchase\_timestamp)) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}\AttributeTok{delivery\_in\_days =} 
+           \FunctionTok{as.numeric}\NormalTok{((order\_delivered\_customer\_date }\SpecialCharTok{{-}}\NormalTok{ order\_purchase\_timestamp)}\SpecialCharTok{/}\DecValTok{24}\NormalTok{)) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}\AttributeTok{delivery\_delay\_in\_days =} 
+           \FunctionTok{as.numeric}\NormalTok{(}\SpecialCharTok{{-}}\NormalTok{(order\_estimated\_delivery\_date }\SpecialCharTok{{-}}\NormalTok{ order\_delivered\_customer\_date)}\SpecialCharTok{/}\NormalTok{(}\DecValTok{60}\SpecialCharTok{*}\DecValTok{60}\SpecialCharTok{*}\DecValTok{24}\NormalTok{))) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}\AttributeTok{approval\_delay\_in\_hours =} \FunctionTok{as.numeric}\NormalTok{((order\_approved\_at }\SpecialCharTok{{-}}\NormalTok{ order\_purchase\_timestamp)}\SpecialCharTok{/}\NormalTok{(}\DecValTok{3600}\NormalTok{)))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{pedidos }\OtherTok{\textless{}{-}}\NormalTok{ pedidos }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{left\_join}\NormalTok{(pagamentos) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}\AttributeTok{value\_delay\_interaction =}\NormalTok{ payment\_value }\SpecialCharTok{*}\NormalTok{ delivery\_delay\_in\_days) }\CommentTok{\# Talvez eu tenha que centralizar e padronizar antes}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Joining, by = "order_id"
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{avaliacoes }\OtherTok{\textless{}{-}}\NormalTok{ avaliacoes }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{left\_join}\NormalTok{(pedidos) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}\AttributeTok{survey\_hours\_after\_arrival =} \FunctionTok{as.numeric}\NormalTok{((review\_answer\_timestamp }\SpecialCharTok{{-}}\NormalTok{ order\_delivered\_customer\_date)}\SpecialCharTok{/}\DecValTok{60}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Joining, by = "order_id"
+\end{verbatim}
+
+Fim do feature engineering
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{itens }\OtherTok{\textless{}{-}}\NormalTok{ itens }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{left\_join}\NormalTok{(}
+    \FunctionTok{select}\NormalTok{(}
+\NormalTok{      produtos,}
+\NormalTok{      product\_id,}
+\NormalTok{      mean\_prod\_score,}
+\NormalTok{      product\_description\_length,}
+\NormalTok{      product\_category\_name,}
+\NormalTok{      product\_photos\_qty,}
+\NormalTok{      product\_name\_length,}
+\NormalTok{      product\_weight\_g}
+\NormalTok{    )}
+\NormalTok{  ) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{group\_by}\NormalTok{(order\_id) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{summarise}\NormalTok{(}
+    \AttributeTok{mean\_prod\_score =} \FunctionTok{mean}\NormalTok{(mean\_prod\_score),}
+    \AttributeTok{freight\_value =} \FunctionTok{sum}\NormalTok{(freight\_value),}
+    \AttributeTok{price =} \FunctionTok{sum}\NormalTok{(price),}
+    \AttributeTok{product\_description\_length =} \FunctionTok{mean}\NormalTok{(product\_description\_length),}
+    \AttributeTok{product\_category\_name =} \FunctionTok{first}\NormalTok{(product\_category\_name),}
+    \AttributeTok{product\_photos\_qty =} \FunctionTok{mean}\NormalTok{(product\_photos\_qty),}
+    \AttributeTok{product\_name\_length =} \FunctionTok{mean}\NormalTok{(product\_name\_length),}
+    \AttributeTok{product\_weight\_g =} \FunctionTok{max}\NormalTok{(product\_weight\_g),}
+    \AttributeTok{n\_items =} \FunctionTok{n}\NormalTok{()}
+\NormalTok{  ) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{ungroup}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Joining, by = "product_id"
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{avaliacoes }\OtherTok{\textless{}{-}}\NormalTok{ avaliacoes }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{left\_join}\NormalTok{(itens, }\AttributeTok{by =} \FunctionTok{c}\NormalTok{(}\StringTok{"order\_id"} \OtherTok{=} \StringTok{"order\_id"}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\#map(avaliacoes\_validacao$splits[[1]]$data, function(x) sum(is.na(x)))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{avaliacoes }\OtherTok{\textless{}{-}}\NormalTok{ avaliacoes }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{select}\NormalTok{(}
+\NormalTok{    review\_sentiment,}
+\NormalTok{    survey\_hours\_after\_asking,}
+\NormalTok{    estimated\_delivery\_in\_days,}
+\NormalTok{    delivery\_in\_days,}
+\NormalTok{    delivery\_delay\_in\_days,}
+\NormalTok{    approval\_delay\_in\_hours,}
+\NormalTok{    payment\_value,}
+\NormalTok{    payment\_installments,}
+\NormalTok{    survey\_hours\_after\_arrival,}
+\NormalTok{    mean\_prod\_score,}
+\NormalTok{    freight\_value,}
+\NormalTok{    price,}
+\NormalTok{    product\_description\_length,}
+\NormalTok{    product\_photos\_qty,}
+\NormalTok{    product\_name\_length,}
+\NormalTok{    product\_weight\_g,}
+\NormalTok{    n\_items, }
+\NormalTok{    product\_category\_name}
+\NormalTok{  ) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{filter}\NormalTok{(review\_sentiment }\SpecialCharTok{!=} \StringTok{"neutral"}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{filter}\NormalTok{(survey\_hours\_after\_asking }\SpecialCharTok{\textless{}=} \DecValTok{240}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{filter}\NormalTok{(survey\_hours\_after\_arrival }\SpecialCharTok{\textless{}=} \DecValTok{240}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate\_if}\NormalTok{(is.character, as.factor)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 0\tabcolsep) * \real{0.06}}@{}}
+\toprule
+\endhead
+Exploratória \\
+\texttt{r\ avaliacoes\ \%\textgreater{}\%\ ggplot(aes(x\ =\ mean\_prod\_score))\ +\ geom\_histogram()\ +\ facet\_wrap(\textasciitilde{}review\_sentiment,\ ncol\ =\ 1,\ scales\ =\ "free")} \\
+\texttt{\#\#\ \textasciigrave{}stat\_bin()\textasciigrave{}\ using\ \textasciigrave{}bins\ =\ 30\textasciigrave{}.\ Pick\ better\ value\ with\ \textasciigrave{}binwidth\textasciigrave{}.} \\
+\includegraphics{olist_sentiment_files/figure-latex/unnamed-chunk-19-1.pdf} \\
+\texttt{r\ avaliacoes\ \%\textgreater{}\%\ ggplot(aes(x\ =\ delivery\_in\_days,\ fill\ =\ review\_sentiment))\ +\ geom\_histogram(show.legend\ =\ F)\ +\ facet\_wrap(\textasciitilde{}review\_sentiment,\ ncol\ =\ 1,\ scales\ =\ "free\_y")} \\
+\texttt{\#\#\ \textasciigrave{}stat\_bin()\textasciigrave{}\ using\ \textasciigrave{}bins\ =\ 30\textasciigrave{}.\ Pick\ better\ value\ with\ \textasciigrave{}binwidth\textasciigrave{}.} \\
+\includegraphics{olist_sentiment_files/figure-latex/unnamed-chunk-20-1.pdf} \\
+\texttt{r\ avaliacoes\ \%\textgreater{}\%\ ggplot(aes(x\ =\ survey\_hours\_after\_asking,\ fill\ =\ review\_sentiment))\ +\ geom\_histogram(show.legend\ =\ F)\ +\ facet\_wrap(\textasciitilde{}review\_sentiment,\ ncol\ =\ 1,\ scales\ =\ "free\_y")\ +\ scale\_x\_log10()} \\
+\texttt{\#\#\ \textasciigrave{}stat\_bin()\textasciigrave{}\ using\ \textasciigrave{}bins\ =\ 30\textasciigrave{}.\ Pick\ better\ value\ with\ \textasciigrave{}binwidth\textasciigrave{}.} \\
+\includegraphics{olist_sentiment_files/figure-latex/unnamed-chunk-21-1.pdf} \\
+\texttt{r\ avaliacoes\ \%\textgreater{}\%\ ggplot(aes(x\ =\ product\_description\_length,\ fill\ =\ review\_sentiment))\ +\ geom\_histogram(show.legend\ =\ F)\ +\ facet\_wrap(\textasciitilde{}review\_sentiment,\ scales\ =\ "free\_y",\ ncol\ =\ 1)} \\
+\texttt{\#\#\ \textasciigrave{}stat\_bin()\textasciigrave{}\ using\ \textasciigrave{}bins\ =\ 30\textasciigrave{}.\ Pick\ better\ value\ with\ \textasciigrave{}binwidth\textasciigrave{}.} \\
+\texttt{\#\#\ Warning:\ Removed\ 1269\ rows\ containing\ non-finite\ values\ (stat\_bin).} \\
+\includegraphics{olist_sentiment_files/figure-latex/unnamed-chunk-22-1.pdf} \\
+\texttt{r\ avaliacoes\ \%\textgreater{}\%\ ggplot(aes(x\ =\ freight\_value,\ fill\ =\ review\_sentiment))\ +\ geom\_histogram(show.legend\ =\ F)\ +\ facet\_wrap(\textasciitilde{}review\_sentiment,\ scales\ =\ "free\_y",\ ncol\ =\ 1)\ +\ scale\_x\_log10()} \\
+\texttt{\#\#\ Warning:\ Transformation\ introduced\ infinite\ values\ in\ continuous\ x-axis} \\
+\texttt{\#\#\ \textasciigrave{}stat\_bin()\textasciigrave{}\ using\ \textasciigrave{}bins\ =\ 30\textasciigrave{}.\ Pick\ better\ value\ with\ \textasciigrave{}binwidth\textasciigrave{}.} \\
+\texttt{\#\#\ Warning:\ Removed\ 311\ rows\ containing\ non-finite\ values\ (stat\_bin).} \\
+\includegraphics{olist_sentiment_files/figure-latex/unnamed-chunk-23-1.pdf} \\
+\texttt{r\ avaliacoes\ \%\textgreater{}\%\ ggplot(aes(x\ =\ payment\_value))\ +\ geom\_histogram()\ +\ facet\_wrap(\textasciitilde{}review\_sentiment,\ scales\ =\ "free\_y",\ ncol\ =\ 1)\ +\ scale\_x\_log10()} \\
+\texttt{\#\#\ \textasciigrave{}stat\_bin()\textasciigrave{}\ using\ \textasciigrave{}bins\ =\ 30\textasciigrave{}.\ Pick\ better\ value\ with\ \textasciigrave{}binwidth\textasciigrave{}.} \\
+\texttt{\#\#\ Warning:\ Removed\ 1\ rows\ containing\ non-finite\ values\ (stat\_bin).} \\
+\includegraphics{olist_sentiment_files/figure-latex/unnamed-chunk-24-1.pdf} \\
+\texttt{r\ avaliacoes\ \%\textgreater{}\%\ ggplot(aes(x\ =\ estimated\_delivery\_in\_days,\ fill\ =\ review\_sentiment))\ +\ geom\_histogram(show.legend\ =\ F)\ +\ facet\_wrap(\textasciitilde{}review\_sentiment,\ scales\ =\ "free\_y",\ ncol\ =\ 1)} \\
+\texttt{\#\#\ \textasciigrave{}stat\_bin()\textasciigrave{}\ using\ \textasciigrave{}bins\ =\ 30\textasciigrave{}.\ Pick\ better\ value\ with\ \textasciigrave{}binwidth\textasciigrave{}.} \\
+\includegraphics{olist_sentiment_files/figure-latex/unnamed-chunk-25-1.pdf} \\
+\texttt{r\ avaliacoes\ \%\textgreater{}\%\ ggplot(aes(x\ =\ n\_items,\ fill\ =\ review\_sentiment))\ +\ geom\_bar(show.legend\ =\ F)\ +\ facet\_wrap(\textasciitilde{}review\_sentiment,\ scales\ =\ "free\_y",\ ncol\ =\ 1)} \\
+\includegraphics{olist_sentiment_files/figure-latex/unnamed-chunk-26-1.pdf} \\
+\texttt{r\ avaliacoes\ \%\textgreater{}\%\ select(review\_sentiment,\ survey\_hours\_after\_asking)\ \%\textgreater{}\%\ rename(original\ =\ survey\_hours\_after\_asking)\ \%\textgreater{}\%\ mutate(yeojohnson\ =\ predict(yeojohnson(original)))\ \%\textgreater{}\%\ mutate(boxcox\ =\ predict(boxcox(original)))\ \%\textgreater{}\%\ pivot\_longer(c("original",\ "yeojohnson",\ "boxcox"),\ names\_to\ =\ "transformation",\ values\_to\ =\ "survey\_hours\_after\_asking")\ \%\textgreater{}\%\ mutate(transformation\ =\ factor(\ transformation,\ levels\ =\ c("original",\ "boxcox",\ "yeojohnson"),\ ordered\ =\ T\ ))\ \%\textgreater{}\%\ ggplot(aes(x\ =\ survey\_hours\_after\_asking,\ fill\ =\ review\_sentiment))\ +\ geom\_histogram(show.legend\ =\ F)\ +\ facet\_grid(review\_sentiment\ \textasciitilde{}\ transformation,\ scales\ =\ "free")} \\
+\texttt{\#\#\ \textasciigrave{}stat\_bin()\textasciigrave{}\ using\ \textasciigrave{}bins\ =\ 30\textasciigrave{}.\ Pick\ better\ value\ with\ \textasciigrave{}binwidth\textasciigrave{}.} \\
+\includegraphics{olist_sentiment_files/figure-latex/unnamed-chunk-27-1.pdf} \\
+\texttt{r\ avaliacoes\ \%\textgreater{}\%\ select\_if(is.numeric)\ \%\textgreater{}\%\ na.omit()\ \%\textgreater{}\%\ ggcorr(label\ =\ T,\ hjust\ =\ 1)} \\
+\includegraphics{olist_sentiment_files/figure-latex/unnamed-chunk-28-1.pdf} \\
+\texttt{r\ avaliacoes\ \%\textgreater{}\%\ ggplot(aes(x\ =\ freight\_value,\ fill\ =\ review\_sentiment))\ +\ geom\_histogram(show.legend\ =\ F)\ +\ facet\_wrap(\textasciitilde{}review\_sentiment,\ scales\ =\ "free\_y",\ ncol\ =\ 1)} \\
+\texttt{\#\#\ \textasciigrave{}stat\_bin()\textasciigrave{}\ using\ \textasciigrave{}bins\ =\ 30\textasciigrave{}.\ Pick\ better\ value\ with\ \textasciigrave{}binwidth\textasciigrave{}.} \\
+\includegraphics{olist_sentiment_files/figure-latex/unnamed-chunk-29-1.pdf} \\
+\texttt{r\ avaliacoes\_split\ \textless{}-\ initial\_split(avaliacoes,\ prop\ =\ 0.8,\ strata\ =\ review\_sentiment)\ avaliacoes\_treino\ \textless{}-\ training(avaliacoes\_split)\ avaliacoes\_test\ \textless{}-\ testing(avaliacoes\_split)} \\
+\texttt{r\ set.seed(2021)\ avaliacoes\_validacao\ \textless{}-\ vfold\_cv(avaliacoes\_treino,\ v\ =\ 10,\ strata\ =\ review\_sentiment)} \\
+\texttt{r\ receita\_dados\ \textless{}-\ recipe(review\_sentiment\ \textasciitilde{}\ delivery\_in\_days\ +\ delivery\_delay\_in\_days\ +\ mean\_prod\_score\ +\ n\_items\ +\ payment\_value\ +\ estimated\_delivery\_in\_days,\ product\_category\_name,\ data\ =\ avaliacoes\_treino)\ \%\textgreater{}\%\ step\_unknown(all\_nominal\_predictors())\ \%\textgreater{}\%\ step\_dummy(all\_nominal(),\ -all\_outcomes())\ \%\textgreater{}\%\ step\_impute\_median(all\_numeric\_predictors())\ \%\textgreater{}\%\ step\_YeoJohnson(all\_numeric\_predictors())\ \%\textgreater{}\%\ step\_interact(term\ =\ \textasciitilde{}\ payment\_value:mean\_prod\_score\ +\ mean\_prod\_score:delivery\_delay\_in\_days)\ \%\textgreater{}\%\ step\_zv(all\_predictors())\ \%\textgreater{}\%\ step\_normalize(all\_predictors())} \\
+\texttt{r\ log\_mod\ \textless{}-\ logistic\_reg(penalty\ =\ tune(),\ mixture\ =\ tune())\ \%\textgreater{}\%\ set\_engine("glmnet",\ family\ =\ "binomial")} \\
+\texttt{r\ log\_wf\ \textless{}-\ workflow()\ \%\textgreater{}\%\ add\_recipe(receita\_dados)\ \%\textgreater{}\%\ add\_model(log\_mod)} \\
+\texttt{r\ log\_mod\_res\ \textless{}-\ log\_wf\ \%\textgreater{}\%\ tune\_grid(avaliacoes\_validacao,\ grid\ =\ crossing(penalty\ =\ 10\^{}seq(-3,\ -1,\ length.out\ =\ 30),\ mixture\ =\ 0:1),\ control\ =\ control\_grid(save\_pred\ =\ TRUE),\ metrics\ =\ metric\_set(accuracy))} \\
+\texttt{r\ autoplot(log\_mod\_res)} \\
+\includegraphics{olist_sentiment_files/figure-latex/unnamed-chunk-36-1.pdf} \\
+\texttt{r\ log\_mod\_best\ \textless{}-\ log\_wf\ \%\textgreater{}\%\ finalize\_workflow(select\_best(log\_mod\_res))} \\
+\texttt{r\ log\_mod\_best\_fit\ \textless{}-\ log\_mod\_best\ \%\textgreater{}\%\ last\_fit(avaliacoes\_split)} \\
+\texttt{r\ log\_mod\_best\ \%\textgreater{}\%\ fit(avaliacoes\_treino)\ \%\textgreater{}\%\ pull\_workflow\_fit()\ \%\textgreater{}\%\ vip(geom\ =\ "point")\ +\ labs(title\ =\ "Variáveis\ mais\ importantes",\ x\ =\ "Importância")} \\
+\includegraphics{olist_sentiment_files/figure-latex/unnamed-chunk-39-1.pdf} \\
+\bottomrule
+\end{longtable}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{doParallel}\SpecialCharTok{::}\FunctionTok{registerDoParallel}\NormalTok{(}\AttributeTok{cores =} \DecValTok{12}\NormalTok{)}
+\NormalTok{xgb\_mod }\OtherTok{\textless{}{-}} \FunctionTok{boost\_tree}\NormalTok{(}
+  \AttributeTok{mtry =} \FunctionTok{tune}\NormalTok{(),}
+  \AttributeTok{trees =} \DecValTok{1000}\NormalTok{,}
+  \AttributeTok{tree\_depth =} \FunctionTok{tune}\NormalTok{(),}
+  \AttributeTok{min\_n =} \FunctionTok{tune}\NormalTok{(),}
+  \AttributeTok{loss\_reduction =} \FunctionTok{tune}\NormalTok{(),}
+  \AttributeTok{sample\_size =} \FunctionTok{tune}\NormalTok{(),}
+  \AttributeTok{learn\_rate =} \FunctionTok{tune}\NormalTok{()) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{set\_engine}\NormalTok{(}\StringTok{"xgboost"}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{set\_mode}\NormalTok{(}\StringTok{"classification"}\NormalTok{)}
+
+\NormalTok{xgb\_wf }\OtherTok{\textless{}{-}} \FunctionTok{workflow}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{add\_recipe}\NormalTok{(receita\_dados) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{add\_model}\NormalTok{(xgb\_mod)}
+
+\NormalTok{xgb\_grid }\OtherTok{\textless{}{-}} \FunctionTok{grid\_latin\_hypercube}\NormalTok{(}
+  \FunctionTok{tree\_depth}\NormalTok{(),}
+  \FunctionTok{min\_n}\NormalTok{(),}
+  \FunctionTok{loss\_reduction}\NormalTok{(),}
+  \AttributeTok{sample\_size =} \FunctionTok{sample\_prop}\NormalTok{(),}
+  \FunctionTok{finalize}\NormalTok{(}\FunctionTok{mtry}\NormalTok{(), avaliacoes\_treino),}
+  \FunctionTok{learn\_rate}\NormalTok{(),}
+  \AttributeTok{size =} \DecValTok{20}
+\NormalTok{ )}
+
+\NormalTok{xgb\_res }\OtherTok{\textless{}{-}} \FunctionTok{tune\_grid}\NormalTok{(}
+\NormalTok{  xgb\_wf,}
+  \AttributeTok{resamples =}\NormalTok{ avaliacoes\_validacao,}
+  \AttributeTok{grid =}\NormalTok{ xgb\_grid,}
+         \AttributeTok{metrics =} \FunctionTok{metric\_set}\NormalTok{(accuracy),}
+         \AttributeTok{control =} \FunctionTok{control\_grid}\NormalTok{(}\AttributeTok{save\_pred =} \ConstantTok{TRUE}\NormalTok{)}
+\NormalTok{)}
+
+\FunctionTok{autoplot}\NormalTok{(xgb\_res)}
+
+\NormalTok{xgb\_mod\_best }\OtherTok{\textless{}{-}}\NormalTok{ xgb\_wf }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{finalize\_workflow}\NormalTok{(}\FunctionTok{select\_best}\NormalTok{(xgb\_res))}
+
+\NormalTok{xgb\_mod\_best\_fit }\OtherTok{\textless{}{-}}\NormalTok{ xgb\_mod\_best }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{last\_fit}\NormalTok{(avaliacoes\_split)}
+
+\NormalTok{xgb\_mod\_best\_fit }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{pull\_workflow\_fit}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{vip}\NormalTok{(}\AttributeTok{geom =} \StringTok{"point"}\NormalTok{) }\SpecialCharTok{+} 
+  \FunctionTok{labs}\NormalTok{(}\AttributeTok{title =} \StringTok{"Variáveis mais importantes"}\NormalTok{, }\AttributeTok{x =} \StringTok{"Importância"}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{theme\_classic}\NormalTok{()}
+
+\NormalTok{xgb\_mod\_best\_fit }\OtherTok{\textless{}{-}}\NormalTok{ xgb\_mod\_best }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{last\_fit}\NormalTok{(avaliacoes\_split) }
+
+\NormalTok{preds }\OtherTok{\textless{}{-}}\NormalTok{ xgb\_mod\_best\_fit }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{collect\_predictions}\NormalTok{()}
+\NormalTok{preds }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ .pred\_negative)) }\SpecialCharTok{+}
+  \FunctionTok{geom\_histogram}\NormalTok{() }\SpecialCharTok{+} 
+  \FunctionTok{geom\_vline}\NormalTok{(}\AttributeTok{xintercept =} \FloatTok{0.5}\NormalTok{)}
+
+\NormalTok{preds }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}\AttributeTok{new\_pred =} \FunctionTok{if\_else}\NormalTok{(.pred\_bad }\SpecialCharTok{\textgreater{}=} \FloatTok{0.10}\NormalTok{, }\StringTok{"bad"}\NormalTok{, }\StringTok{"good"}\NormalTok{)) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{conf\_mat}\NormalTok{(review\_sentiment, new\_pred)}
+\end{Highlighting}
+\end{Shaded}
+
+
+\end{document}

@@ -1,0 +1,854 @@
+---
+title: "Prevendo o sentimento de avaliações de comércio eletrônico com modelos de machine learning"
+output:
+  prettydoc::html_pretty:
+    toc: yes
+    theme: cayman
+    highlight: github
+---
+
+Autor: [Gustavo Carvalho](https://www.linkedin.com/in/gustavohcarvalho/)
+
+Segundo uma [pesquisa recente](https://www.reviewtrackers.com/reports/online-reviews-survey/), 94% das pessoas já desistiram de uma compra por causa de uma avaliação negativa. Para as empresas de comércio eletrônico, identificar os clientes insatisfeitos antes de eles enviarem uma avaliação ruim do produto ou pedido permite:
+  
+  - Envio de mensagens personalizadas para resolver a insatisfação antes da avaliação negativa
+  - Mostrar que se importa: muitos consumidores não deixam as resenhas para outros consumidores, mas sim para que a empresa saiba da sua instisfação
+  
+Nesta análise, eu utilizo dados de 100 mil pedidos da Olist para criar modelos que preveem o sentimento da avaliação de um pedido (positivo ou negativo). Entre as variáveis explicativas, temos o valor dos pedido, valor do frete, prazo de entrega, dias de atraso na entrega e forma de pagamento.
+
+---
+
+Para criar um modelo que preveja se um usuário tende a deixar uma avaliação positiva ou negativa, neste notebook eu:
+
+1. Exploro os dados, identificando o formato das distribuições, presença de outliers, correlações entre as variáveis
+2. Crio novas variáveis (feature engineering) de acordo com o problema de negócio, retiro as variáveis altamente correlacionadas às outras, e aplico as transformações necessárias para cada modelo 
+3. Ajusto uma série de modelos de aprendizado de máquina em que a variável a ser prevista é o sentimento da avaliação (positivo ou negativo)
+4. Interpreto os resultados do ponto de visto do negócio
+
+Nesta análise eu uso o R, os pacotes dos grupos tidyverse e tidymodels, e os dados da Olist disponibilizados no Kaggle.
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(dpi=300,fig.width=7)
+```
+
+```{r, echo = F, message = F}
+library(tidyverse)
+library(tidymodels)
+library(lubridate)
+library(stacks)
+library(bestNormalize)
+library(patchwork)
+library(GGally)
+library(vip)
+library(gt)
+library(prettydoc)
+theme_set(theme_light())
+```
+
+## 1. Importando os dados e criando novas variáveis
+
+```{r, message=FALSE}
+
+# Lendo os arquivos disponibilizados no Kaggle. Cada csv corresponde a uma tabela do banco
+# A coluna order_id é a principal chave
+geolocations <- read_csv("data/olist/olist_geolocation_dataset.csv")
+consumidores <- read_csv("data/olist/olist_customers_dataset.csv")
+itens <- read_csv("data/olist/olist_order_items_dataset.csv")
+avaliacoes <- read_csv("data/olist/olist_order_reviews_dataset.csv")
+produtos <- read_csv("data/olist/olist_products_dataset.csv")
+vendedores <- read_csv("data/olist/olist_sellers_dataset.csv")
+pagamentos <- read_csv("data/olist/olist_order_payments_dataset.csv")
+pedidos <- read_csv("data/olist/olist_orders_dataset.csv")
+
+# Corrigindo nomes de variáveis errados na fonte (lenght em vez de length)
+produtos <- produtos %>%
+  rename(product_description_length = product_description_lenght,
+         product_name_length = product_name_lenght) %>%
+  mutate(product_category_name = if_else(is.na(product_category_name), "outras", product_category_name))
+
+# Criando a variável resposta
+avaliacoes <- avaliacoes %>%
+  mutate(
+    review_sentiment = case_when(
+      review_score %in% 1:2 ~ "negative",
+      review_score %in% 4:5 ~ "positive",
+      TRUE ~ "neutral"
+    )
+  ) %>% filter(review_sentiment != "neutral")
+
+# Calculando a nota média por produto
+mean_prod_rating <- avaliacoes %>%
+  left_join(pedidos) %>%
+  left_join(itens) %>%
+  left_join(produtos) %>%
+  select(product_id, review_score) %>%
+  group_by(product_id) %>%
+  summarise(mean_prod_score = mean(review_score, na.rm = T)) %>%
+  ungroup()
+
+produtos <- produtos %>%
+  left_join(mean_prod_rating)
+
+# Criando a variável survey_hours_after_asking
+# Tempo entre email de solicitação e postagem na resenha
+avaliacoes <- avaliacoes %>%
+  filter(!duplicated(order_id)) %>%
+  mutate(survey_hours_after_asking = as.numeric(review_answer_timestamp - review_creation_date))
+
+# Agrupando os pagamentos em pedidos pagos com mais de uma forma (cartão e voucher, por exemplo)
+pagamentos <- pagamentos %>%
+  group_by(order_id) %>%
+  summarise(payment_value = sum(payment_value), 
+            payment_type = first(payment_type),
+            payment_installments = min(payment_installments)) %>%
+  ungroup()
+
+# Criando 3 variáveis relacionadas aos prazos:
+# 1. estimated_delivery_in_days
+# 2. delivery_in_days
+# 3. delivery_delay_in_days (positiva se houve atraso)
+# 4. approval_delay_in_days 
+pedidos <- pedidos %>%
+  mutate(estimated_delivery_in_days = 
+           as.numeric(order_estimated_delivery_date - order_purchase_timestamp)) %>%
+  mutate(delivery_in_days = 
+           as.numeric((order_delivered_customer_date - order_purchase_timestamp)/24)) %>%
+  mutate(delivery_delay_in_days = 
+           as.numeric(-(order_estimated_delivery_date - order_delivered_customer_date)/(60*60*24))) %>%
+  mutate(approval_delay_in_hours = as.numeric((order_approved_at - order_purchase_timestamp)/(3600)))
+
+# Criando uma interação entre valor do pedido e atraso
+pedidos <- pedidos %>%
+  left_join(pagamentos) %>%
+  mutate(value_delay_interaction = payment_value * delivery_delay_in_days) # Talvez eu tenha que centralizar e padronizar antes
+
+# Quanto tempo (horas) depois da chegada do pedido a requisição de avaliação foi enviada
+avaliacoes <- avaliacoes %>%
+  left_join(pedidos) %>%
+  mutate(survey_hours_after_arrival = as.numeric((review_answer_timestamp - order_delivered_customer_date)/60))
+
+# Agrupando os dados de pedidos com mais de 1 item
+itens <- itens %>%
+  left_join(
+    select(
+      produtos,
+      product_id,
+      mean_prod_score,
+      product_description_length,
+      product_category_name,
+      product_photos_qty,
+      product_name_length,
+      product_weight_g
+    )
+  ) %>%
+  group_by(order_id) %>%
+  summarise(
+    mean_prod_score = mean(mean_prod_score),
+    freight_value = sum(freight_value),
+    price = sum(price),
+    product_description_length = mean(product_description_length),
+    product_category_name = first(product_category_name),
+    product_photos_qty = sum(product_photos_qty),
+    product_name_length = mean(product_name_length),
+    product_weight_g = max(product_weight_g),
+    n_items = n()
+  ) %>%
+  ungroup()
+
+avaliacoes <- avaliacoes %>%
+  left_join(itens, by = c("order_id" = "order_id"))
+
+# Selecionando as variáveis para o df final
+# Retirando as avaliações neutras da análise e pedidos com datas suspeitas
+avaliacoes <- avaliacoes %>%
+  select(
+    review_score,
+    review_sentiment, # sentimento, 1:3 negative e 4:5 positive
+    survey_hours_after_asking, # tempo (h) da postagem depois do pedido
+    estimated_delivery_in_days, # tempo (dias) previsto de entrega
+    delivery_in_days, # tempo (dias) de entrega
+    delivery_delay_in_days, # atraso (dias) na entrega. Negativo se não houve.
+    approval_delay_in_hours, # tempo (h) para aprovação do pedido
+    payment_value, # valor
+    payment_installments, # número de parcelas
+    payment_type, # forma de pagamento
+    survey_hours_after_arrival, # tempo (h) do pedido de avaliação depois da entrega
+    mean_prod_score, # avaliação média (1:5) de cada produto
+    freight_value, # valor do frete
+    price, # preço do produto (pedido - frete)
+    product_description_length, # número de caracteres na descrição
+    product_photos_qty, # número de fotos
+    product_name_length, # número de caracteres no nome
+    product_weight_g, # massa (g)
+    n_items, # número de items do pedid
+    product_category_name # categoria do produto (escolhida aleatoriamente se +1 item)
+  ) %>%
+  filter(survey_hours_after_asking <= 240) %>%
+  filter(survey_hours_after_arrival <= 240) %>%
+  mutate_if(is.character, as.factor)
+```
+
+## 2. Variável objetivo: review_sentiment
+
+Nos 100 mil pedidos, a classificação mais comum foi 5 estrelas (57%), seguida de 4 estrelas (19%) e 1 estrela (11%). Para esta análise, considerei notas 4 e 5 como positivas, 1 e 2 como negativas e 3 como neutra. Retirei as avaliações neutras dos dados para a análise.
+
+```{r}
+avaliacoes %>%
+  ggplot(aes(x = review_score)) +
+  geom_bar() +
+  labs(
+    x = "Classificação",
+    y = "Número de avaliações",
+    title = "Distribuição das notas",
+    subtitle = "Em 100 mil pedidos da Olist"
+  )
+```
+```{r}
+avaliacoes %>%
+  count(review_score) %>%
+  ungroup() %>%
+  mutate(proportion = round(n/sum(n), 3)) %>%
+  arrange(desc(review_score)) %>%
+  gt()
+```
+
+Criei a variável `review_sentiment` usando as regras acima. **Essa é a variável que vamos prever**. O objetivo principal é identificar que pedidos tendem a gerar avaliações negativas.
+
+```{r}
+avaliacoes %>%
+  ggplot(aes(x = review_sentiment)) + 
+  geom_bar() + 
+  labs(
+    x = "review_sentiment",
+    y = "Número de avaliações",
+    title = "Distribuição dos sentimentos",
+    subtitle = "Em 100 mil pedidos da Olist"
+  )
+```
+```{r}
+avaliacoes %>%
+  count(review_sentiment) %>%
+  ungroup() %>%
+  mutate(proportion = round(n/sum(n), 3)) %>%
+  arrange(desc(n)) %>%
+  gt()
+```
+
+As classes são desbalanceadas, então a amostragem para construção dos conjuntos de treino, validação e teste será estratificada. Isso influencia também na interpretação das métricas do modelo. Um modelo que classifica todas as avaliações como positivas tem acurácia de 78%.
+
+## 3. Variáveis preditoras (features)
+
+## 3.1 Correlações
+
+```{r, fig.width = 10}
+avaliacoes %>%
+  select_if(is.numeric) %>%
+  na.omit() %>%
+  ggcorr(label = T, hjust = 1)
+```
+
+
+A única correlação preocupante é entre `payment_value` (valor do pedido + frete) e `price` (soma dos valores dos produtos no pedido). Excluirei `price` da análise.
+
+## 3.2 Distribuições 
+
+### a. Classificação média do produto: mean_prod_score
+
+A nota média de cada produto nas avaliações. A ideia é que quanto menor a média, maior a tendência de que novas avaliações do mesmo produto tenham sentimento negativo, refletindo a qualidade do produto ou algum outro fator que cause insatisfação nos consumidores.
+
+```{r}
+avaliacoes %>%
+  select(review_sentiment, mean_prod_score) %>%
+  rename(original = mean_prod_score) %>%
+  mutate(yeojohnson = predict(yeojohnson(original))) %>%
+  mutate(boxcox = predict(boxcox(original))) %>%
+  pivot_longer(c("original", "yeojohnson", "boxcox"),
+               names_to = "transformation",
+               values_to = "mean_prod_score") %>%
+  mutate(transformation = factor(
+    transformation,
+    levels = c("original", "boxcox", "yeojohnson"),
+    ordered = T
+  )) %>%
+  ggplot(aes(x = mean_prod_score, fill = review_sentiment)) +
+  geom_histogram(show.legend = F) +
+  labs(
+    y = "Número de pedidos",
+    title = "Distribuição das notas dos produtos",
+    subtitle = "Em 100 mil pedidos da Olist"
+  ) +
+  facet_grid(review_sentiment ~ transformation, scales = "free")
+```
+
+As transformações de Box Cox e Yeo Johnson não mudam significativamente a distribuição original, que parece ser levemente deslocada nos produtos dos pedidos com avaliações positivas.
+
+### b. Tempo entre email solicitando e postagem da avaliação: survey_hours_after_asking
+
+O tempo entre solicitação da avaliação pela Olist e postagem da avaliação pelo usuário pode refletir o sentimento.
+
+```{r}
+avaliacoes %>%
+  select(review_sentiment, survey_hours_after_asking) %>%
+  rename(original = survey_hours_after_asking) %>%
+  mutate(yeojohnson = predict(yeojohnson(original))) %>%
+  mutate(boxcox = predict(boxcox(original))) %>%
+  pivot_longer(c("original", "yeojohnson", "boxcox"),
+               names_to = "transformation",
+               values_to = "survey_hours_after_asking") %>%
+  mutate(transformation = factor(
+    transformation,
+    levels = c("original", "boxcox", "yeojohnson"),
+    ordered = T
+  )) %>%
+  ggplot(aes(x = survey_hours_after_asking, fill = review_sentiment)) +
+  geom_histogram(show.legend = F) +
+  labs(
+    y = "Número de pedidos",
+    title = "Distribuição do tempo de resposta",
+    subtitle = "Em 100 mil pedidos da Olist"
+  ) +
+  facet_grid(review_sentiment ~ transformation, scales = "free")
+```
+
+Transformar os dados deixa as distribuições mais simétricas. Aqui parece não haver diferença no tempo entre as classes de sentimento.
+
+### c. Valor do pagamento, método e parcelas: payment_value, payment_type e payment_installments
+
+Quanto maior o valor do produto + frente, mais sensível o cliente a desvios de qualidade e atrasos.
+
+```{r}
+avaliacoes %>%
+  filter(payment_value <= 2500) %>% # Filtrando apenas para plotar
+  select(review_sentiment, payment_value) %>%
+  rename(original = payment_value) %>%
+  mutate(yeojohnson = predict(yeojohnson(original))) %>%
+  mutate(boxcox = predict(boxcox(original))) %>%
+  pivot_longer(c("original", "yeojohnson", "boxcox"),
+               names_to = "transformation",
+               values_to = "payment_value") %>%
+  mutate(transformation = factor(
+    transformation,
+    levels = c("original", "boxcox", "yeojohnson"),
+    ordered = T
+  )) %>%
+  ggplot(aes(x = payment_value, fill = review_sentiment)) +
+  geom_histogram(show.legend = F) +
+  labs(
+    y = "Número de pedidos",
+    title = "Distribuição dos valores dos pedidos",
+    subtitle = "Em 100 mil pedidos da Olist"
+  ) +
+  facet_grid(review_sentiment ~ transformation, scales = "free")
+```
+
+A distribuição dos valores é similar entre as classes de sentimento das avaliações. As transformações deixam as distribuições mais simétricas. Os valores originais são truncados e alguns outliers alongam a cauda.
+
+```{r}
+avaliacoes %>%
+  filter(!is.na(payment_type)) %>%
+  group_by(review_sentiment, payment_type) %>%
+  count(sort = T) %>%
+  ungroup() %>%
+  group_by(review_sentiment) %>%
+  mutate(n = n/sum(n)) %>%
+  mutate(payment_type = fct_reorder(payment_type, n)) %>%
+  ungroup() %>%
+  ggplot(aes(y = payment_type, x = n, fill = review_sentiment)) + 
+  geom_col(show.legend = F) + 
+  labs(
+    x = "Proporção de pedidos",
+    title = "Distribuição dos valores dos pedidos",
+    subtitle = "Em 100 mil pedidos da Olist"
+  ) + 
+  facet_wrap(~review_sentiment, ncol = 2)
+```
+
+Cartão de crédito é a forma de pagamento mais comum e as proporções são idênticas entre as duas classes de sentimento.
+
+```{r}
+avaliacoes %>%
+  filter(!is.na(payment_installments), payment_installments > 0) %>%
+  group_by(review_sentiment, payment_installments) %>%
+  count(sort = T) %>%
+  ungroup() %>%
+  group_by(review_sentiment) %>%
+  mutate(n = n/sum(n)) %>%
+  mutate(payment_installments = fct_reorder(factor(payment_installments), n)) %>%
+  ungroup() %>%
+  ggplot(aes(y = payment_installments, x = n, fill = review_sentiment)) + 
+  geom_col(show.legend = F) + 
+  labs(
+    x = "Proporção de pedidos",
+    title = "Distribuição do número de parcelas",
+    subtitle = "Em 100 mil pedidos da Olist"
+  ) + 
+  facet_wrap(~review_sentiment, ncol = 2)
+```
+
+
+Os pedidos à vista são mais comuns. Não há diferenças entre as classes.
+
+### d. estimated_delivery_in_days, delivery_in_days, delivery_delay_in_days, approval_delay_in_hours
+
+As variáveis deste grupo se referem aos prazos do pedido. Quanto maior o prazo e o atraso, maior a tendência de instatisfação do consumidor.
+
+```{r}
+avaliacoes %>%
+  select(review_sentiment, estimated_delivery_in_days) %>%
+  rename(original = estimated_delivery_in_days) %>%
+  mutate(yeojohnson = predict(yeojohnson(original))) %>%
+  mutate(boxcox = predict(boxcox(original))) %>%
+  pivot_longer(c("original", "yeojohnson", "boxcox"),
+               names_to = "transformation",
+               values_to = "estimated_delivery_in_days") %>%
+  mutate(transformation = factor(
+    transformation,
+    levels = c("original", "boxcox", "yeojohnson"),
+    ordered = T
+  )) %>%
+  ggplot(aes(x = estimated_delivery_in_days, fill = review_sentiment)) +
+  geom_histogram(show.legend = F) +
+  labs(
+    y = "Número de pedidos",
+    title = "Distribuição dos prazos de entrega",
+    subtitle = "Em 100 mil pedidos da Olist"
+  ) + 
+  facet_grid(review_sentiment ~ transformation, scales = "free")
+```
+
+O prazo estimado de entrega tem um leve desvio de simetria que é corrigido pelas transformações. Não há diferença notável entre as classes.
+
+```{r}
+avaliacoes %>%
+  select(review_sentiment, delivery_in_days) %>%
+  rename(original = delivery_in_days) %>%
+  mutate(yeojohnson = predict(yeojohnson(original))) %>%
+  mutate(boxcox = predict(boxcox(original))) %>%
+  pivot_longer(c("original", "yeojohnson", "boxcox"),
+               names_to = "transformation",
+               values_to = "delivery_in_days") %>%
+  mutate(transformation = factor(
+    transformation,
+    levels = c("original", "boxcox", "yeojohnson"),
+    ordered = T
+  )) %>%
+  ggplot(aes(x = delivery_in_days, fill = review_sentiment)) +
+  geom_histogram(show.legend = F) +
+  labs(
+    y = "Número de pedidos",
+    title = "Distribuição do tempo de entrega",
+    subtitle = "Em 100 mil pedidos da Olist"
+  ) + 
+  facet_grid(review_sentiment ~ transformation, scales = "free")
+```
+
+O tempo que a encomenda levou para chegar ao destino é levemente maior para os pedidos com avaliações negativas. As transformações corrigem o desvio de simetria.
+
+```{r}
+avaliacoes %>%
+  select(review_sentiment, delivery_delay_in_days) %>%
+  rename(original = delivery_delay_in_days) %>%
+  mutate(yeojohnson = predict(yeojohnson(original))) %>%
+#  mutate(boxcox = predict(boxcox(original))) %>%
+  pivot_longer(c("original", "yeojohnson"),
+               names_to = "transformation",
+               values_to = "delivery_delay_in_days") %>%
+  mutate(transformation = factor(
+    transformation,
+    levels = c("original", "yeojohnson"),
+    ordered = T
+  )) %>%
+  ggplot(aes(x = delivery_delay_in_days, fill = review_sentiment)) +
+  geom_histogram(show.legend = F) +
+  labs(
+    y = "Número de pedidos",
+    title = "Distribuição do atraso na entrega",
+    subtitle = "Em 100 mil pedidos da Olist"
+  ) + 
+  facet_grid(review_sentiment ~ transformation, scales = "free")
+```
+
+Os pedidos com sentimento negativo têm atrasos mais longos. Não apliquei a transformação de Box Cox por haver valores negativos.
+
+```{r}
+avaliacoes %>%
+  filter(!is.na(approval_delay_in_hours), approval_delay_in_hours > 0) %>%
+  select(review_sentiment, approval_delay_in_hours) %>%
+  rename(original = approval_delay_in_hours) %>%
+  mutate(yeojohnson = predict(yeojohnson(original))) %>%
+  mutate(boxcox = predict(boxcox(original))) %>%
+  pivot_longer(c("original", "yeojohnson", "boxcox"),
+               names_to = "transformation",
+               values_to = "approval_delay_in_hours") %>%
+  mutate(transformation = factor(
+    transformation,
+    levels = c("original", "boxcox", "yeojohnson"),
+    ordered = T
+  )) %>%
+  ggplot(aes(x = approval_delay_in_hours, fill = review_sentiment)) +
+  geom_histogram(show.legend = F) +
+  labs(
+    y = "Número de pedidos",
+    title = "Distribuição do tempo para aprovação do pedido",
+    subtitle = "Em 100 mil pedidos da Olist"
+  ) + 
+  facet_grid(review_sentiment ~ transformation, scales = "free")
+```
+
+A distribuição do tempo necessário para aprovação do pedido é a mesma entre as classes.
+
+### e. freight_value, product_description_length, product_photos_qty, n_items, product_category_name
+
+As variáveis deste grupo indicam características dos produtos do pedido. Por exemplo, quanto menor a descrição do produto, maior a possibilidade de insatisfação por discrepâncias entre o entregue e o esperado.
+
+```{r}
+avaliacoes %>%
+  filter(!is.na(freight_value)) %>%
+  select(review_sentiment, freight_value) %>%
+  rename(original = freight_value) %>%
+  mutate(yeojohnson = predict(yeojohnson(original))) %>%
+  pivot_longer(c("original", "yeojohnson"),
+               names_to = "transformation",
+               values_to = "freight_value") %>%
+  mutate(transformation = factor(
+    transformation,
+    levels = c("original", "yeojohnson"),
+    ordered = T
+  )) %>%
+  ggplot(aes(x = freight_value, fill = review_sentiment)) +
+  geom_histogram(show.legend = F) +
+  labs(
+    y = "Número de pedidos",
+    title = "Distribuição do valor do frete",
+    subtitle = "Em 100 mil pedidos da Olist"
+  ) + 
+  facet_grid(review_sentiment ~ transformation, scales = "free")
+```
+
+Os valores do frete são ligeiramente maiores nos pedidos classificados como negativos.
+
+```{r}
+avaliacoes %>%
+  filter(!is.na(product_description_length)) %>%
+  select(review_sentiment, product_description_length) %>%
+  rename(original = product_description_length) %>%
+  mutate(yeojohnson = predict(yeojohnson(original))) %>%
+  mutate(boxcox = predict(boxcox(original))) %>%
+  pivot_longer(c("original", "yeojohnson", "boxcox"),
+               names_to = "transformation",
+               values_to = "product_description_length") %>%
+  mutate(transformation = factor(
+    transformation,
+    levels = c("original", "boxcox", "yeojohnson"),
+    ordered = T
+  )) %>%
+  ggplot(aes(x = product_description_length, fill = review_sentiment)) +
+  geom_histogram(show.legend = F) +
+  labs(
+    y = "Número de pedidos",
+    title = "Distribuição do número de caracteres na descrição do produto",
+    subtitle = "Em 100 mil pedidos da Olist"
+  ) + 
+  facet_grid(review_sentiment ~ transformation, scales = "free")
+```
+
+A distribuição do número de caracteres é a mesma entre as classes.
+
+```{r}
+avaliacoes %>%
+  filter(!is.na(product_photos_qty)) %>%
+  group_by(review_sentiment, product_photos_qty) %>%
+  count(sort = T) %>%
+  ungroup() %>%
+  group_by(review_sentiment) %>%
+  mutate(n = n/sum(n)) %>%
+  arrange(desc(n)) %>%
+  top_n(9) %>%
+  mutate(product_photos_qty = fct_reorder(factor(product_photos_qty), n)) %>%
+  ungroup() %>%
+  ggplot(aes(y = product_photos_qty, x = n, fill = review_sentiment)) + 
+  geom_col(show.legend = F) + 
+  labs(
+    x = "Proporção de pedidos",
+    title = "Distribuição da soma do número de fotos nos produtos de um pedido",
+    subtitle = "Em 100 mil pedidos da Olist"
+  ) + 
+  facet_wrap(~review_sentiment, ncol = 2, scales = "free_y")
+```
+
+A maioria dos pedidos têm apenas 1 foto e não há diferenças significativas na distribuição da quantidade de fotos entre as classes de sentimento.
+
+## 4. Análises
+
+### 4.1 Modelo logístico com regularização
+
+Dividi o conjunto de dados em dois subconjuntos: treino, com 80% dos dados e teste, com os 20% restantes. Como as classes de sentimento são desbalanceadas, fiz uma amostragem estratificada.
+
+```{r}
+set.seed(2021)
+avaliacoes_split <- initial_split(avaliacoes, prop = 0.8, strata = review_sentiment)
+avaliacoes_treino <- training(avaliacoes_split)
+avaliacoes_test <- testing(avaliacoes_split)
+```
+
+Em seguida, criei um grupo de conjuntos de validação cruzada com 10 folds para comparar os modelos e ajustar os hiperparâmetros. A amostragem também foi estratificada.
+
+```{r}
+set.seed(2021)
+avaliacoes_validacao <- vfold_cv(avaliacoes_treino, v = 10, strata = review_sentiment)
+```
+
+Seguindo o workflow do tidymodels, criei uma receita para indicar a fórmula do modelo e os ajustes necessários aos dados. Criei um nível "unknown" para os fatores com níveis omitidos, criei variáveis dummy para todas as variáveis categóricas, imputei a mediana às variáveis numéricas, transformei seguindo Yeo Johnson, criei termos de interações entre as variáveis provavelmente mais importantes, padronizei e centralizei os valores.
+
+```{r}
+receita_dados <- recipe(review_sentiment ~ survey_hours_after_asking + estimated_delivery_in_days + delivery_in_days + delivery_delay_in_days + approval_delay_in_hours + payment_value + payment_installments + payment_type + survey_hours_after_arrival + mean_prod_score + freight_value + product_description_length + product_photos_qty + n_items, data = avaliacoes_treino) %>%
+  step_unknown(all_nominal_predictors()) %>%
+  step_dummy(all_nominal(), -all_outcomes()) %>%
+  step_impute_median(all_numeric_predictors()) %>%
+  step_YeoJohnson(all_numeric_predictors()) %>%
+  step_interact(term = ~ payment_value:mean_prod_score + mean_prod_score:delivery_delay_in_days) %>%
+  step_zv(all_predictors()) %>%
+  step_normalize(all_predictors())
+```
+
+O primeiro modelo é uma regressão logística com penalizacão. O tipo (Lasso ou Ridge) e o lâmbda serão ajustados via grid search.
+
+```{r}
+log_mod <- logistic_reg(penalty = tune(), mixture = tune()) %>%
+  set_engine("glmnet", family = "binomial")
+```
+
+Criando um workflow com a receita e o modelo.
+
+```{r}
+log_wf <- workflow() %>%
+  add_recipe(receita_dados) %>%
+  add_model(log_mod)
+```
+
+Ajustando o lâmbda e o tipo de penalização com grid search e cross-validation. O grid aqui é uma combinação simples entre lâmbda (30) e tipo de penalização (2). Assim, são 60 modelos para cada fold.
+
+```{r}
+log_mod_res <-
+  log_wf %>%
+  tune_grid(
+    avaliacoes_validacao,
+    grid = crossing(
+      penalty = 10 ^ seq(-4,-1, length.out = 30),
+      mixture = 0:1
+    ),
+    control = control_grid(
+      save_pred = T,
+      save_workflow = F,
+      extract = extract_model
+    ),
+    metrics = metric_set(accuracy)
+  )
+```
+
+Plotando o resultado do grid search.
+```{r}
+autoplot(log_mod_res)
+```
+
+O modelo Lasso com penalização 1e-04 foi o melhor. Finalizando o workflow com o melhor modelo:
+
+```{r}
+log_mod_best <- log_wf %>%
+  finalize_workflow(select_best(log_mod_res))
+```
+
+Fazendo o último ajuste no melhor modelo: ajustando o modelo com todos os dados de treino e calculando as métricas (acurácia e ROC) no conjunto de testes.
+
+```{r}
+log_mod_best_fit <- log_mod_best %>%
+  last_fit(avaliacoes_split)
+```
+
+Plotando as variáveis mais importantes:
+
+```{r}
+log_mod_best %>%
+  fit(avaliacoes_treino) %>%
+  pull_workflow_fit() %>%
+  vip(geom = "point") + 
+  labs(title = "Variáveis mais importantes", x = "Importância")
+```
+
+A maioria das variáveis contribuiu significativamente para o ajuste do modelo. A variável `mean_prod_score` (a média das notas dos produtos no pedido) foi a mais importante. Isso indica que a qualidade dos produtos é o fator mais importante. Em seguida, a interação entre qualidade do produto e atraso na entrega.
+
+As métricas de ajuste do modelo:
+
+
+```{r}
+log_mod_best_fit %>%
+  collect_metrics() %>%
+  gt()
+```
+
+A acurácia foi de 90% e a área sob a curva ROC também 90%.
+
+```{r}
+log_conf_mat <- log_mod_best_fit %>%
+  collect_predictions() %>%
+  conf_mat(review_sentiment, .pred_class)
+
+log_conf_mat
+```
+
+Apesar da acurácia de 90%, a matriz de confiança indica que esse valor elevado se deu principalmente devido à diferença no número de pedidos entre as classes. Para o negócio, o valor está em identificar corretamente os pedidos com sentimento negativo. No conjunto de testes, havia `r sum(log_conf_mat[[1]][,1])` pedidos avaliados negativamente. Desses, o modelo foi capaz de prever corretamente `r log_conf_mat[[1]][1,1]` (`r round(log_conf_mat[[1]][1,1]/sum(log_conf_mat[[1]][,1]) * 100, 2)`%) das avaliações negativas. As avaliações positivas foram identificadas corretamente em `r round(log_conf_mat[[1]][2, 2]/sum(log_conf_mat[[1]][, 2]), 2) * 100`% dos casos.
+
+Variáveis como a histórico de avaliações do consumidor e um conjunto maior de dados provavelmente melhorariam o modelo. Do ponto de vista do negócio, se o custo de falso negativos não for um impeditivo, é possível aumentar a sensibilidade ajustando a probabilidade mínima para que uma avaliação seja prevista como negativa:
+
+```{r}
+log_conf_mat_new <- log_mod_best_fit %>%
+  collect_predictions() %>%
+  mutate(new_pred = factor(if_else(.pred_negative > 0.2, "negative", "positive"))) %>%
+  conf_mat(review_sentiment, new_pred)
+
+log_conf_mat_new
+```
+
+Diminuindo a probabilidade para 0.2, o modelo passa a identificar corretamente `r round(log_conf_mat_new[[1]][1,1]/sum(log_conf_mat_new[[1]][,1]) * 100, 2)`% das avaliações negativas. Em contrapartida, as avaliações positivas seriam identificadas corretamente em `r round(log_conf_mat_new[[1]][2, 2]/sum(log_conf_mat_new[[1]][, 2]), 2) * 100`% dos casos. O custo dos novos falso negativos é impeditivo, mesmo com o aumento dos negativos verdadeiros? Desconsiderando o fator financeiro, provavelmente não. Por exemplo, se o objetivo for fazer uma campanha via emails para melhorar a satisfação dos clientes, não há problema em tratar os clientes satisfeitos como insatisfeitos. Porém, se a campanha envolver telefonemas ou outro acompanhamento mais caro, pode ser que o custo dos falsos negativos se torne um problema.
+
+---
+
+### 4.2 XGBoost
+
+Para tentar melhorar as previsões de negativos verdadeiros sem aumentar os falsos negativos, construí um modelo XGBoost para classificação usando a mesma receita do modelo logístico acima: divisão 80/20 treino e testes, 10-fold cross-validation para ajustar os hiperparâmetros e um grid search com tamanho 10 e seguindo o esquema latin hypercube, já que o modelo XGBoost leva um tempo consideravalmente maior para rodar.
+
+```{r}
+doParallel::registerDoParallel(cores = 12)
+xgb_mod <- boost_tree(
+  mtry = tune(),
+  trees = tune(),
+  tree_depth = tune(),
+  learn_rate = tune(),
+  min_n = tune(),
+  loss_reduction = tune(),
+  sample_size = tune()
+) %>%
+  set_engine("xgboost") %>%
+  set_mode("classification")
+
+xgb_wf <- workflow() %>%
+  add_recipe(receita_dados) %>%
+  add_model(xgb_mod)
+
+xgb_grid <- grid_latin_hypercube(
+  tree_depth(),
+  min_n(),
+  loss_reduction(),
+  learn_rate(range = c(0.01, 0.3), trans = NULL),
+  trees(range = c(200, 800)),
+  sample_size = sample_prop(),
+  finalize(mtry(), avaliacoes_treino),
+  size = 10
+)
+
+xgb_res <- tune_grid(
+  xgb_wf,
+  resamples = avaliacoes_validacao,
+  grid = xgb_grid,
+  metrics = metric_set(accuracy),
+  control = control_grid(
+    save_pred = T,
+    save_workflow = F
+  )
+)
+```
+
+```{r}
+autoplot(xgb_res)
+```
+Os hiperparâmetros pouco influenciaram na acurácia do modelo XGBoost. O próximo passo é finalizar o workflow e ajustar o modelo com todo o conjunto de treino e fazer as previsões com o de testes.
+
+```{r}
+xgb_mod_best <- xgb_wf %>%
+  finalize_workflow(select_best(xgb_res))
+
+xgb_mod_best_fit <- xgb_mod_best %>%
+  last_fit(avaliacoes_split)
+```
+
+As variáveis mais importantes são as mesmas do modelo logístico.
+
+```{r}
+xgb_mod_best %>%
+  fit(avaliacoes_treino) %>%
+  pull_workflow_fit() %>%
+  vip(geom = "point") + 
+  labs(title = "Variáveis mais importantes", x = "Importância")
+```
+```{r}
+preds <- xgb_mod_best_fit %>% collect_predictions()
+```
+
+```{r}
+xgb_mod_best_fit %>%
+  collect_metrics() %>%
+  gt()
+```
+A acurácia do modelo é de 92%.
+
+```{r}
+xgb_conf_mat <- preds %>%
+  conf_mat(review_sentiment, .pred_class)
+
+xgb_conf_mat
+```
+A matriz de confusão indica que o modelo XGBoost detecta os negativos de maneira ligeiramente mais eficiente: `r round(xgb_conf_mat[[1]][1,1]/sum(xgb_conf_mat[[1]][,1]) * 100, 2)`% das avaliações negativas identificadas corretamente. As avaliações positivas foram identificadas corretamente em `r round(xgb_conf_mat[[1]][2,2]/sum(xgb_conf_mat[[1]][,2]) * 100, 2)`% dos casos.
+
+```{r}
+xgb_conf_mat_new <- preds %>%
+  mutate(new_pred = factor(if_else(.pred_negative > 0.2, "negative", "positive"))) %>% 
+  conf_mat(review_sentiment, new_pred)
+
+xgb_conf_mat_new
+```
+A matriz de confusão com o limite modificado para 0.2 mostra que o modelo XGBoost consegue identificar `r round(xgb_conf_mat_new[[1]][1,1]/sum(xgb_conf_mat_new[[1]][,1]) * 100, 2)`% das avaliações negativas. Mais uma vez, é preciso entender o que se pretende com o modelo no nível do negócio para identificar o ponto de corte com melhor custo-benefício.
+
+```{r}
+bind_rows(
+preds %>%
+  roc_curve(review_sentiment, .pred_negative) %>%
+  mutate(Modelo = "XGBoost"),
+log_mod_best_fit %>%
+  collect_predictions() %>%
+  roc_curve(review_sentiment, .pred_negative) %>%
+  mutate(Modelo = "Logístico")
+) %>%
+  mutate(specificity = 1 - specificity) %>%
+  rename(`Negativo verdadeiro` = sensitivity, `Falso negativo` = specificity) %>%
+  pivot_longer(c("Falso negativo", "Negativo verdadeiro"), names_to = "metric", values_to = "value") %>%
+  mutate(metric = factor(metric), Modelo = factor(Modelo)) %>%
+  ggplot(aes(x = .threshold, y = value, col = Modelo)) + 
+  geom_path() +
+  geom_vline(xintercept = 0.5, col = "red", linetype = "dotted") +
+  facet_wrap(~metric)
+```
+Os dois modelos apresentam desempenho semelhante na detecção de negativos verdadeiros, com leve vantagem para o modelo logístico. Em contrapartida, o modelo logístico resulta em uma quantidade maior de falsos negativos. A escolha do modelo depende da tolerância do negócio aos falsos negativos.
+
+Abaixo o código de um ensemble entre os dois modelos, mas as previsões não melhoram. Deixei apenas como referência. Caso queira testar, a métrica nos grid search tem que ser alterada para roc_auc.
+
+```{r, eval = F}
+log_best <- log_mod_res %>% filter_parameters(parameters = select_best(log_mod_res))
+xgb_best <- xgb_res %>% filter_parameters(parameters = select_best(xgb_res))
+
+log_xgb_blend <- stacks() %>%
+  add_candidates(log_best) %>%
+  add_candidates(xgb_best) %>%
+  blend_predictions()
+
+log_xgb_fit <- log_xgb_blend %>%
+  fit_members()
+
+blend_pred <- log_xgb_fit %>%
+  predict(avaliacoes_test, type = "class", members = TRUE)
+```
+```{r, eval = F}
+log_xgb_fit %>%
+  predict(avaliacoes_test, type = "class", members = TRUE) %>%
+  bind_cols(avaliacoes_test) %>%
+  conf_mat(review_sentiment, .pred_class_xgb_best_1_09)
+```
