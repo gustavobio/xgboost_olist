@@ -1,10 +1,14 @@
 ---
 title: "Prevendo o sentimento de avaliações de comércio eletrônico com modelos de machine learning"
+date: "`r Sys.Date()`"
+author: Gustavo Carvalho
 output:
-  prettydoc::html_pretty:
-    toc: yes
-    theme: cayman
-    highlight: github
+  rmdformats::robobook:
+    self_contained: true
+    thumbnails: true
+    lightbox: true
+    gallery: false
+    highlight: tango
 ---
 
 Autor: [Gustavo Carvalho](https://www.linkedin.com/in/gustavohcarvalho/)
@@ -42,6 +46,7 @@ library(GGally)
 library(vip)
 library(gt)
 library(prettydoc)
+library(rmdformats)
 theme_set(theme_light())
 ```
 
@@ -238,7 +243,7 @@ As classes são desbalanceadas, então a amostragem para construção dos conjun
 
 ## 3. Variáveis preditoras (features)
 
-## 3.1 Correlações
+### 3.1 Correlações
 
 ```{r, fig.width = 10}
 avaliacoes %>%
@@ -250,9 +255,9 @@ avaliacoes %>%
 
 A única correlação preocupante é entre `payment_value` (valor do pedido + frete) e `price` (soma dos valores dos produtos no pedido). Excluirei `price` da análise.
 
-## 3.2 Distribuições 
+### 3.2 Distribuições 
 
-### a. Classificação média do produto: mean_prod_score
+#### a. Classificação média do produto: mean_prod_score
 
 A nota média de cada produto nas avaliações. A ideia é que quanto menor a média, maior a tendência de que novas avaliações do mesmo produto tenham sentimento negativo, refletindo a qualidade do produto ou algum outro fator que cause insatisfação nos consumidores.
 
@@ -282,7 +287,7 @@ avaliacoes %>%
 
 As transformações de Box Cox e Yeo Johnson não mudam significativamente a distribuição original, que parece ser levemente deslocada nos produtos dos pedidos com avaliações positivas.
 
-### b. Tempo entre email solicitando e postagem da avaliação: survey_hours_after_asking
+#### b. Tempo entre email solicitando e postagem da avaliação: survey_hours_after_asking
 
 O tempo entre solicitação da avaliação pela Olist e postagem da avaliação pelo usuário pode refletir o sentimento.
 
@@ -312,7 +317,7 @@ avaliacoes %>%
 
 Transformar os dados deixa as distribuições mais simétricas. Aqui parece não haver diferença no tempo entre as classes de sentimento.
 
-### c. Valor do pagamento, método e parcelas: payment_value, payment_type e payment_installments
+#### c. Valor do pagamento, método e parcelas: payment_value, payment_type e payment_installments
 
 Quanto maior o valor do produto + frente, mais sensível o cliente a desvios de qualidade e atrasos.
 
@@ -388,7 +393,7 @@ avaliacoes %>%
 
 Os pedidos à vista são mais comuns. Não há diferenças entre as classes.
 
-### d. estimated_delivery_in_days, delivery_in_days, delivery_delay_in_days, approval_delay_in_hours
+#### d. estimated_delivery_in_days, delivery_in_days, delivery_delay_in_days, approval_delay_in_hours
 
 As variáveis deste grupo se referem aos prazos do pedido. Quanto maior o prazo e o atraso, maior a tendência de instatisfação do consumidor.
 
@@ -497,7 +502,7 @@ avaliacoes %>%
 
 A distribuição do tempo necessário para aprovação do pedido é a mesma entre as classes.
 
-### e. freight_value, product_description_length, product_photos_qty, n_items, product_category_name
+#### e. freight_value, product_description_length, product_photos_qty, n_items, product_category_name
 
 As variáveis deste grupo indicam características dos produtos do pedido. Por exemplo, quanto menor a descrição do produto, maior a possibilidade de insatisfação por discrepâncias entre o entregue e o esperado.
 
@@ -601,9 +606,13 @@ avaliacoes_validacao <- vfold_cv(avaliacoes_treino, v = 10, strata = review_sent
 Seguindo o workflow do tidymodels, criei uma receita para indicar a fórmula do modelo e os ajustes necessários aos dados. Criei um nível "unknown" para os fatores com níveis omitidos, criei variáveis dummy para todas as variáveis categóricas, imputei a mediana às variáveis numéricas, transformei seguindo Yeo Johnson, criei termos de interações entre as variáveis provavelmente mais importantes, padronizei e centralizei os valores.
 
 ```{r}
-receita_dados <- recipe(review_sentiment ~ survey_hours_after_asking + estimated_delivery_in_days + delivery_in_days + delivery_delay_in_days + approval_delay_in_hours + payment_value + payment_installments + payment_type + survey_hours_after_arrival + mean_prod_score + freight_value + product_description_length + product_photos_qty + n_items, data = avaliacoes_treino) %>%
+receita_dados <-
+  recipe(
+    review_sentiment ~ survey_hours_after_asking + estimated_delivery_in_days + delivery_in_days + delivery_delay_in_days + approval_delay_in_hours + payment_value + payment_installments + payment_type + survey_hours_after_arrival + mean_prod_score + freight_value + product_description_length + product_photos_qty + n_items,
+    data = avaliacoes_treino
+  ) %>%
   step_unknown(all_nominal_predictors()) %>%
-  step_dummy(all_nominal(), -all_outcomes()) %>%
+  step_dummy(all_nominal(),-all_outcomes()) %>%
   step_impute_median(all_numeric_predictors()) %>%
   step_YeoJohnson(all_numeric_predictors()) %>%
   step_interact(term = ~ payment_value:mean_prod_score + mean_prod_score:delivery_delay_in_days) %>%
@@ -672,7 +681,7 @@ log_mod_best %>%
   fit(avaliacoes_treino) %>%
   pull_workflow_fit() %>%
   vip(geom = "point") + 
-  labs(title = "Variáveis mais importantes", x = "Importância")
+  labs(title = "Variáveis mais importantes")
 ```
 
 A maioria das variáveis contribuiu significativamente para o ajuste do modelo. A variável `mean_prod_score` (a média das notas dos produtos no pedido) foi a mais importante. Isso indica que a qualidade dos produtos é o fator mais importante. Em seguida, a interação entre qualidade do produto e atraso na entrega.
@@ -778,7 +787,7 @@ xgb_mod_best %>%
   fit(avaliacoes_treino) %>%
   pull_workflow_fit() %>%
   vip(geom = "point") + 
-  labs(title = "Variáveis mais importantes", x = "Importância")
+  labs(title = "Variáveis mais importantes")
 ```
 ```{r}
 preds <- xgb_mod_best_fit %>% collect_predictions()
@@ -810,22 +819,28 @@ A matriz de confusão com o limite modificado para 0.2 mostra que o modelo XGBoo
 
 ```{r}
 bind_rows(
-preds %>%
-  roc_curve(review_sentiment, .pred_negative) %>%
-  mutate(Modelo = "XGBoost"),
-log_mod_best_fit %>%
-  collect_predictions() %>%
-  roc_curve(review_sentiment, .pred_negative) %>%
-  mutate(Modelo = "Logístico")
+  preds %>%
+    roc_curve(review_sentiment, .pred_negative) %>%
+    mutate(Modelo = "XGBoost"),
+  log_mod_best_fit %>%
+    collect_predictions() %>%
+    roc_curve(review_sentiment, .pred_negative) %>%
+    mutate(Modelo = "Logístico")
 ) %>%
   mutate(specificity = 1 - specificity) %>%
   rename(`Negativo verdadeiro` = sensitivity, `Falso negativo` = specificity) %>%
-  pivot_longer(c("Falso negativo", "Negativo verdadeiro"), names_to = "metric", values_to = "value") %>%
+  pivot_longer(
+    c("Falso negativo", "Negativo verdadeiro"),
+    names_to = "metric",
+    values_to = "value"
+  ) %>%
   mutate(metric = factor(metric), Modelo = factor(Modelo)) %>%
-  ggplot(aes(x = .threshold, y = value, col = Modelo)) + 
+  ggplot(aes(x = .threshold, y = value, col = Modelo)) +
   geom_path() +
-  geom_vline(xintercept = 0.5, col = "red", linetype = "dotted") +
-  facet_wrap(~metric)
+  geom_vline(xintercept = 0.5,
+             col = "red",
+             linetype = "dotted") +
+  facet_wrap( ~ metric)
 ```
 Os dois modelos apresentam desempenho semelhante na detecção de negativos verdadeiros, com leve vantagem para o modelo logístico. Em contrapartida, o modelo logístico resulta em uma quantidade maior de falsos negativos. A escolha do modelo depende da tolerância do negócio aos falsos negativos.
 
