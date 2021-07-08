@@ -612,12 +612,12 @@ receita_dados <-
     data = avaliacoes_treino
   ) %>%
   step_unknown(all_nominal_predictors()) %>%
-  step_dummy(all_nominal(),-all_outcomes()) %>%
   step_impute_median(all_numeric_predictors()) %>%
   step_YeoJohnson(all_numeric_predictors()) %>%
   step_interact(term = ~ payment_value:mean_prod_score + mean_prod_score:delivery_delay_in_days) %>%
-  step_zv(all_predictors()) %>%
-  step_normalize(all_predictors())
+  step_normalize(all_numeric_predictors()) %>%
+  step_dummy(all_nominal(),-all_outcomes())
+
 ```
 
 O primeiro modelo é uma regressão logística com penalizacão. O tipo (Lasso ou Ridge) e o lâmbda serão ajustados via grid search.
@@ -651,7 +651,7 @@ log_mod_res <-
       save_workflow = F,
       extract = extract_model
     ),
-    metrics = metric_set(accuracy)
+    metrics = metric_set(pr_auc)
   )
 ```
 
@@ -712,7 +712,9 @@ Variáveis como a histórico de avaliações do consumidor e um conjunto maior d
 ```{r}
 log_conf_mat_new <- log_mod_best_fit %>%
   collect_predictions() %>%
-  mutate(new_pred = factor(if_else(.pred_negative > 0.2, "negative", "positive"))) %>%
+  mutate(new_pred = factor(if_else(
+    .pred_negative > 0.2, "negative", "positive"
+  ))) %>%
   conf_mat(review_sentiment, new_pred)
 
 log_conf_mat_new
@@ -759,7 +761,7 @@ xgb_res <- tune_grid(
   xgb_wf,
   resamples = avaliacoes_validacao,
   grid = xgb_grid,
-  metrics = metric_set(accuracy),
+  metrics = metric_set(pr_auc),
   control = control_grid(
     save_pred = T,
     save_workflow = F
@@ -789,6 +791,7 @@ xgb_mod_best %>%
   vip(geom = "point") + 
   labs(title = "Variáveis mais importantes")
 ```
+
 ```{r}
 preds <- xgb_mod_best_fit %>% collect_predictions()
 ```
@@ -798,7 +801,7 @@ xgb_mod_best_fit %>%
   collect_metrics() %>%
   gt()
 ```
-A acurácia do modelo é de 92%.
+A acurácia do modelo é de 92%. Como as classes previstas são desbalanceadas, esse número não nos diz muito. Para o problema de negócios que queremos resolver, a quantidade de negativos encontrados (recall) e previstos corretamente (precision) nos interessam mais.
 
 ```{r}
 xgb_conf_mat <- preds %>%
@@ -840,7 +843,7 @@ bind_rows(
   geom_vline(xintercept = 0.5,
              col = "red",
              linetype = "dotted") +
-  facet_wrap( ~ metric)
+  facet_wrap(~ metric)
 ```
 Os dois modelos apresentam desempenho semelhante na detecção de negativos verdadeiros, com leve vantagem para o modelo logístico. Em contrapartida, o modelo logístico resulta em uma quantidade maior de falsos negativos. A escolha do modelo depende da tolerância do negócio aos falsos negativos.
 
